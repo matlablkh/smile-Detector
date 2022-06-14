@@ -1,0 +1,67 @@
+import cv2
+import os
+from skimage.feature import local_binary_pattern
+import pandas as pd
+import numpy as np
+from sklearn import svm
+
+cascPath=os.path.dirname(cv2.__file__)+"/data/haarcascade_frontalface_default.xml"
+
+read_file = pd.read_excel(r'F:\PycharmProjects\pythonProject\image processing\New folder\Lables.xlsx')
+features = pd.read_csv(r'F:\PycharmProjects\pythonProject\image processing\featuresLBPPP.csv')
+
+
+faceCascade = cv2.CascadeClassifier(cascPath)
+video_capture = cv2.VideoCapture(0)
+
+radius = 1
+n_points = 8 * radius
+features = np.array(features)
+X = np.delete(features, (0), 1)
+target = read_file['Lables']
+Y = np.array(target)
+model = svm.SVC(kernel='rbf', C=2)  # kernel='rbf',C= 20)
+model.fit(X, Y)
+
+
+
+
+while True:
+    # Capture frame-by-frame
+    ret, frames = video_capture.read()
+    gray = cv2.cvtColor(frames, cv2.COLOR_BGR2GRAY)
+
+    faces = faceCascade.detectMultiScale(
+        gray,
+        scaleFactor=1.5,
+        minNeighbors=6,
+        minSize=(30, 30),
+        flags=cv2.CASCADE_SCALE_IMAGE
+    )
+
+    # Draw a rectangle around the faces
+    for (x, y, w, h) in faces:
+        image = frames
+        image = cv2.resize(image,(64,64))
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        LBP = local_binary_pattern(image, n_points, radius)
+        LBP = LBP.flatten()
+        LBP = LBP / 255
+        result = model.predict(np.array([LBP]))
+        if result == 1:
+            color = (0, 255, 0)
+        else:
+            color = (255,0,0)
+        cv2.rectangle(frames, (x, y), (x+w, y+h), color, 2)
+        result = []
+
+
+
+
+    # Display the resulting frame
+    cv2.imshow('Video', frames)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+video_capture.release()
+cv2.destroyAllWindows()
